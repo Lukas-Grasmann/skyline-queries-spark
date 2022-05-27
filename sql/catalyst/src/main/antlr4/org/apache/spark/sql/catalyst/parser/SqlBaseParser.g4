@@ -483,6 +483,7 @@ fromStatementBody
       aggregationClause?
       havingClause?
       windowClause?
+      skylineClause?
       queryOrganization
     ;
 
@@ -493,14 +494,16 @@ querySpecification
       whereClause?
       aggregationClause?
       havingClause?
-      windowClause?                                                         #transformQuerySpecification
+      windowClause?
+      skylineClause?                                                         #transformQuerySpecification
     | selectClause
       fromClause?
       lateralView*
       whereClause?
       aggregationClause?
       havingClause?
-      windowClause?                                                         #regularQuerySpecification
+      windowClause?
+      skylineClause?                                              #regularQuerySpecification
     ;
 
 transformClause
@@ -988,6 +991,17 @@ frameBound
     | expression boundType=(PRECEDING | FOLLOWING)
     ;
 
+skylineClause
+    : SKYLINE
+      skylineDistinct=DISTINCT?
+      skylineComplete=(COMPLETE | BNL)?
+      skylineItems+=skylineItem (',' skylineItems+=skylineItem)*
+    ;
+
+skylineItem
+    : skylineItemExpression=expression skylineMinMaxDiff=(MIN | MAX | DIFF)
+    ;
+
 qualifiedNameList
     : qualifiedName (COMMA qualifiedName)*
     ;
@@ -1079,6 +1093,7 @@ ansiNonReserved
     | ASC
     | AT
     | BETWEEN
+    | BNL
     | BUCKET
     | BUCKETS
     | BY
@@ -1097,6 +1112,7 @@ ansiNonReserved
     | COMMIT
     | COMPACT
     | COMPACTIONS
+    | COMPLETE
     | COMPUTE
     | CONCATENATE
     | COST
@@ -1117,6 +1133,7 @@ ansiNonReserved
     | DESC
     | DESCRIBE
     | DFS
+    | DIFF
     | DIRECTORIES
     | DIRECTORY
     | DISTRIBUTE
@@ -1168,9 +1185,11 @@ ansiNonReserved
     | MACRO
     | MAP
     | MATCHED
+    | MAX
     | MERGE
     | MICROSECOND
     | MILLISECOND
+    | MIN
     | MINUTE
     | MONTH
     | MSCK
@@ -1232,6 +1251,7 @@ ansiNonReserved
     | SETS
     | SHOW
     | SKEWED
+    | SKYLINE
     | SORT
     | SORTED
     | START
@@ -1324,6 +1344,7 @@ nonReserved
     | AT
     | AUTHORIZATION
     | BETWEEN
+    | BNL
     | BOTH
     | BUCKET
     | BUCKETS
@@ -1348,6 +1369,7 @@ nonReserved
     | COMMIT
     | COMPACT
     | COMPACTIONS
+    | COMPLETE
     | COMPUTE
     | CONCATENATE
     | CONSTRAINT
@@ -1374,6 +1396,7 @@ nonReserved
     | DESC
     | DESCRIBE
     | DFS
+    | DIFF
     | DIRECTORIES
     | DIRECTORY
     | DISTINCT
@@ -1442,9 +1465,11 @@ nonReserved
     | MACRO
     | MAP
     | MATCHED
+    | MAX
     | MERGE
     | MICROSECOND
     | MILLISECOND
+    | MIN
     | MINUTE
     | MONTH
     | MSCK
@@ -1518,6 +1543,7 @@ nonReserved
     | SETS
     | SHOW
     | SKEWED
+    | SKYLINE
     | SOME
     | SORT
     | SORTED

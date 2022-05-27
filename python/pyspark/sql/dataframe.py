@@ -1732,6 +1732,160 @@ class DataFrame(PandasMapOpsMixin, PandasConversionMixin):
 
     orderBy = sort
 
+    def skyline(self, *cols, **kwargs):
+        """Returns a new :class:`DataFrame` containing the skyline with according to the specified
+        dimensions.
+        Result items of this skyline call ARE NOT distinct.
+
+        .. versionadded:: 3.4
+
+        Parameters
+        ----------
+        :param cols: str, list, or :class:`Column` for each skyline dimension
+        :param kwargs: (optional) specifications for minMaxDiff as :class:`str`
+
+        Examples
+        --------
+        Skylines using colmnal specifications
+        >>> df.skyline(df.price.smin()).collect()
+        >>> df.skyline(df.price.smin(), df.distance.smin()).collect()
+        Same skylines using parameters
+        >>> df.skyline("price", minMaxDiff="min").collect()
+        >>> df.skyline(["price", "distance"], minMaxDiff=["min", "min"]).collect()
+        """
+        skyline = self._skyline(cols, kwargs)
+        jdf = self._jdf.skyline(skyline)
+        return DataFrame(jdf, self.sql_ctx)
+
+    def skylineDistinct(self, *cols, **kwargs):
+        """Returns a new :class:`DataFrame` containing the skyline with according to the specified
+        dimensions.
+        Result items of this skyline call ARE distinct.
+
+        .. versionadded:: 3.4
+
+        Parameters
+        ----------
+        :param cols: str, list, or :class:`Column` for each skyline dimension
+        :param kwargs: (optional) specifications for minMaxDiff as :class:`str`
+
+        Examples
+        --------
+        Skylines using columnar specifications
+        >>> df.skylineDistinct(df.price.smin()).collect()
+        >>> df.skylineDistinct(df.price.smin(), df.distance.smin()).collect()
+        Same skylines using parameters
+        >>> df.skylineDistinct("price", minMaxDiff="min").collect()
+        >>> df.skylineDistinct(["price", "distance"], minMaxDiff=["min", "min"]).collect()
+        """
+        skyline = self._skyline(cols, kwargs)
+        jdf = self._jdf.skylineDistinct(skyline)
+        return DataFrame(jdf, self.sql_ctx)
+
+    def skylineComplete(self, *cols, **kwargs):
+        """Returns a new :class:`DataFrame` containing the skyline with according to the
+        specified dimensions.
+        Result items of this skyline call ARE NOT distinct.
+        Forces Spark to assume that all inputs are complete and chose the skyline algorithm
+        accordingly.
+
+        .. versionadded:: 3.4
+
+        Parameters
+        ----------
+        :param cols: str, list, or :class:`Column` for each skyline dimension
+        :param kwargs: (optional) specifications for minMaxDiff as :class:`str`
+
+        Examples
+        --------
+        Skylines using columnar specifications
+        >>> df.skylineComplete(df.price.smin()).collect()
+        >>> df.skylineComplete(df.price.smin(), df.distance.smin()).collect()
+        Same skylines using parameters
+        >>> df.skylineComplete("price", minMaxDiff="min").collect()
+        >>> df.skylineComplete(["price", "distance"], minMaxDiff=["min", "min"]).collect()
+        """
+        skyline = self._skyline(cols, kwargs)
+        jdf = self._jdf.skylineComplete(skyline)
+        return DataFrame(jdf, self.sql_ctx)
+
+    def skylineDistinctComplete(self, *cols, **kwargs):
+        """Returns a new :class:`DataFrame` containing the skyline with according to the
+        specified dimensions.
+        Result items of this skyline call ARE distinct.
+        Forces Spark to assume that all inputs are complete and chose the skyline algorithm
+        accordingly.
+
+        .. versionadded:: 3.4
+
+        Parameters
+        ----------
+        :param cols: str, list, or :class:`Column` for each skyline dimension
+        :param kwargs: (optional) specifications for minMaxDiff as :class:`str`
+
+        Examples
+        --------
+        Skylines using columnar specifications
+        >>> df.skylineDistinctComplete(df.price.smin()).collect()
+        >>> df.skylineDistinctComplete(df.price.smin(), df.distance.smin()).collect()
+        Same skylines using parameters
+        >>> df.skylineDistinctComplete("price", minMaxDiff="min").collect()
+        >>> df.skylineDistinctComplete(["price", "distance"], minMaxDiff=["min", "min"]).collect()
+        """
+        skyline = self._skyline(cols, kwargs)
+        jdf = self._jdf.skylineDistinctComplete(skyline)
+        return DataFrame(jdf, self.sql_ctx)
+
+    def _skyline(self, cols, kwargs):
+        """Internal skyline processing handling different data types
+
+        Parameters
+        ----------
+        :param cols: str, list, or :class:`Column` for each skyline dimension
+        :param kwargs:  (optional) specifications for minMaxDiff and distinct
+                        as :class:`str` and :class:`Boolean or :class:`Int` respectively
+
+        Return Value
+        ------------
+        :return:    a sequence of columns containing the specifications for each skyline dimension
+                    purely columnar representation without any remaining string or other parameters
+        """
+        if not cols:
+            raise ValueError("should be skyline by at least one column")
+
+        if len(cols) == 1 and isinstance(cols[0], list):
+            cols = cols[0]
+
+        jcols = [_to_java_column(c) for c in cols]
+
+        if (kwargs):
+            minMaxDiff = kwargs.get('minMaxDiff', "min")
+        else:
+            minMaxDiff = ()
+
+        if isinstance(minMaxDiff, str) and minMaxDiff and minMaxDiff.strip():
+            if minMaxDiff.strip().lower() == "min":
+                jcols = [jc.smin() for jc in jcols]
+            elif minMaxDiff.strip().lower() == "max":
+                jcols = [jc.smax() for jc in jcols]
+            elif minMaxDiff.strip().lower() == "diff":
+                jcols = [jc.sdiff() for jc in jcols]
+            else:
+                raise TypeError("only min/max/diff allowed for skyline, but got %s" % str)
+        elif isinstance(minMaxDiff, list):
+            for item in minMaxDiff:
+                if item.strip().lower() != "min" \
+                        and item.strip().lower() != "max" \
+                        and item.strip().lower() != "diff":
+                    raise TypeError("only min/max/diff allowed for skyline, but got %s" % item)
+
+            jcols = [jc.smin() if mmd.strip().lower() == "min"
+                     else jc.smax() if mmd.strip().lower() == "max"
+            else jc.sdiff()
+                     for mmd, jc in zip(minMaxDiff, jcols)]
+
+        return self._jseq(jcols)
+
     def _jseq(
         self,
         cols: Sequence,

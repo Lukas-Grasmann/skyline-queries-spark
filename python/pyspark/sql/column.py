@@ -815,6 +815,43 @@ class Column:
     desc_nulls_first = _unary_op("desc_nulls_first", _desc_nulls_first_doc)
     desc_nulls_last = _unary_op("desc_nulls_last", _desc_nulls_last_doc)
 
+    _smin_doc = """
+    Returns a skyline minimization expression for the given column.
+
+    .. versionadded:: 3.4.0
+
+    Examples
+    --------
+    >>> df.skyline(df.price.smin()).collect()
+    >>> df.skylineDistinct(df.price.smin()).collect()
+    """
+
+    _smax_doc = """
+    Returns a skyline maximization expression for the given column.
+
+    .. versionadded:: 3.4.0
+
+    Examples
+    --------
+    >>> df.skyline(df.price.smax()).collect()
+    >>> df.skylineDistinct(df.price.smax()).collect()
+    """
+
+    _sdiff_doc = """
+    Returns a skyline difference expression for the given column.
+
+    .. versionadded:: 3.4.0
+
+    Examples
+    --------
+    >>> df.skyline(df.price.sdiff()).collect()
+    >>> df.skylineDistinct(df.price.sdiff()).collect()
+    """
+
+    smin = _unary_op("smin", _smin_doc)
+    smax = _unary_op("smax", _smax_doc)
+    sdiff = _unary_op("sdiff", _sdiff_doc)
+
     _isNull_doc = """
     True if the current expression is null.
 

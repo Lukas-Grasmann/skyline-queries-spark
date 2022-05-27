@@ -354,6 +354,7 @@ Below is a list of all the keywords in Spark SQL.
 |AT|non-reserved|non-reserved|reserved|
 |AUTHORIZATION|reserved|non-reserved|reserved|
 |BETWEEN|non-reserved|non-reserved|reserved|
+|BNL|non-reserved|non-reserved|non-reserved|
 |BOTH|reserved|non-reserved|reserved|
 |BUCKET|non-reserved|non-reserved|non-reserved|
 |BUCKETS|non-reserved|non-reserved|non-reserved|
@@ -378,6 +379,7 @@ Below is a list of all the keywords in Spark SQL.
 |COMMIT|non-reserved|non-reserved|reserved|
 |COMPACT|non-reserved|non-reserved|non-reserved|
 |COMPACTIONS|non-reserved|non-reserved|non-reserved|
+|COMPLETE|non-reserved|non-reserved|non-reserved|
 |COMPUTE|non-reserved|non-reserved|non-reserved|
 |CONCATENATE|non-reserved|non-reserved|non-reserved|
 |CONSTRAINT|reserved|non-reserved|reserved|
@@ -480,9 +482,11 @@ Below is a list of all the keywords in Spark SQL.
 |MACRO|non-reserved|non-reserved|non-reserved|
 |MAP|non-reserved|non-reserved|non-reserved|
 |MATCHED|non-reserved|non-reserved|non-reserved|
+|MAX|non-reserved|non-reserved|non-reserved|
 |MERGE|non-reserved|non-reserved|non-reserved|
 |MICROSECOND|non-reserved|non-reserved|non-reserved|
 |MILLISECOND|non-reserved|non-reserved|non-reserved|
+|MIN|non-reserved|non-reserved|non-reserved|
 |MINUTE|non-reserved|non-reserved|non-reserved|
 |MINUS|non-reserved|strict-non-reserved|non-reserved|
 |MONTH|non-reserved|non-reserved|non-reserved|
@@ -562,6 +566,7 @@ Below is a list of all the keywords in Spark SQL.
 |SETS|non-reserved|non-reserved|non-reserved|
 |SHOW|non-reserved|non-reserved|non-reserved|
 |SKEWED|non-reserved|non-reserved|non-reserved|
+|SKYLINE|non-reserved|non-reserved|non-reserved|
 |SOME|reserved|non-reserved|reserved|
 |SORT|non-reserved|non-reserved|non-reserved|
 |SORTED|non-reserved|non-reserved|non-reserved|

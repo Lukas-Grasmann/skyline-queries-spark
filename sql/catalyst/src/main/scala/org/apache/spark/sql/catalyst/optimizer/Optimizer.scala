@@ -185,6 +185,15 @@ abstract class Optimizer(catalogManager: CatalogManager)
     // to enforce idempotence on it and we change this batch from Once to FixedPoint(1).
     Batch("Subquery", FixedPoint(1),
       OptimizeSubqueries) ::
+    Batch("Skyline", fixedPoint,
+      // Skyline optimizations
+      RemoveRedundantSkylines,
+      RemoveRedundantSkylineDimensions,
+      ReplaceDistinctDiffSkylines,
+      // added since the skyline optimization may produce Deduplicates
+      ReplaceDeduplicateWithAggregate,
+      RemoveSingleDimensionalSkylines,
+      PushSkylineThroughJoin) ::
     Batch("Replace Operators", fixedPoint,
       RewriteExceptAll,
       RewriteIntersectAll,

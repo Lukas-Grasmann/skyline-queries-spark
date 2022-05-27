@@ -64,6 +64,7 @@ ability to generate logical and physical plan for a given query using
    * [DISTRIBUTE BY Clause](sql-ref-syntax-qry-select-distribute-by.html)
    * [GROUP BY Clause](sql-ref-syntax-qry-select-groupby.html)
    * [HAVING Clause](sql-ref-syntax-qry-select-having.html)
+   * [SKYLINE OF Clause](sql-ref-syntax-qry-select-skylineof.html)
    * [Hints](sql-ref-syntax-qry-select-hints.html)
    * [Inline Table](sql-ref-syntax-qry-select-inline-table.html)
    * [File](sql-ref-syntax-qry-select-file.html)

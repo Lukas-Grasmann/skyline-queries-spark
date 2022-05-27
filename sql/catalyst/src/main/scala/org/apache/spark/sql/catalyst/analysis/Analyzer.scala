@@ -35,6 +35,7 @@ import org.apache.spark.sql.catalyst.expressions.{Expression, FrameLessOffsetWin
 import org.apache.spark.sql.catalyst.expressions.SubExprUtils._
 import org.apache.spark.sql.catalyst.expressions.aggregate._
 import org.apache.spark.sql.catalyst.expressions.objects._
+import org.apache.spark.sql.catalyst.expressions.skyline.{SkylineDimension, SkylineOperator}
 import org.apache.spark.sql.catalyst.optimizer.OptimizeUpdateFields
 import org.apache.spark.sql.catalyst.plans._
 import org.apache.spark.sql.catalyst.plans.logical._
@@ -1944,6 +1945,18 @@ class Analyzer(override val catalogManager: CatalogManager)
       // Skip sort with aggregate. This will be handled in ResolveAggregateFunctions
       case sa @ Sort(_, _, child: Aggregate) => sa
 
+      case s @ SkylineOperator(_, _, skylineItems, child)
+        if (!s.resolved || s.missingInput.nonEmpty) && child.resolved =>
+        val (exprs, newChild) = resolveExprsAndAddMissingAttrs(skylineItems, child)
+        val dimensions = exprs.map(_.asInstanceOf[SkylineDimension])
+        if (child.output == newChild.output) {
+          s.copy(skylineItems = dimensions)
+        } else {
+          // add missing attributes and project them away
+          val newSkyline = s.copy(skylineItems = dimensions, child = newChild)
+          Project(child.output, newSkyline)
+        }
+
       case s @ Sort(order, _, child)
           if (!s.resolved || s.missingInput.nonEmpty) && child.resolved =>
         val (newOrder, newChild) = resolveExprsAndAddMissingAttrs(order, child)
@@ -2589,6 +2602,50 @@ class Analyzer(override val catalogManager: CatalogManager)
             case (sortOrder, expr) => sortOrder.copy(child = expr)
           }
           Sort(newSortOrder, global, newChild)
+        })
+
+      case SkylineOperator(distinct, complete, skylineItems, agg: Aggregate) if agg.resolved =>
+        // We should resolve the references normally based on child (agg.output) first.
+        val maybeResolved = skylineItems.map(_.child).map(resolveExpressionByPlanOutput(_, agg))
+        resolveOperatorWithAggregate(maybeResolved, agg, (newExprs, newChild) => {
+          val newSkylineItems = skylineItems.zip(newExprs).map {
+            case (skylineItems, expr) => skylineItems.copy(child = expr)
+          }
+          SkylineOperator(distinct, complete, newSkylineItems, newChild)
+        })
+
+      case Sort(sortOrder, global, filter@Filter(_, agg: Aggregate)) if agg.resolved =>
+        val maybeResolved = sortOrder.map(_.child).map(resolveExpressionByPlanOutput(_, agg))
+        resolveOperatorWithAggregate(maybeResolved, agg, (newExprs, newChild) => {
+          val newSortOrder = sortOrder.zip(newExprs).map {
+            case (sortOrder, expr) => sortOrder.copy(child = expr)
+          }
+          Sort(newSortOrder, global, filter.copy(child = newChild))
+        })
+
+      case SkylineOperator(distinct, complete, skylineItems, filter@Filter(_, agg: Aggregate))
+          if agg.resolved =>
+        // We should resolve the references normally based on child (agg.output) first.
+        val maybeResolved = skylineItems.map(_.child).map(resolveExpressionByPlanOutput(_, agg))
+        resolveOperatorWithAggregate(maybeResolved, agg, (newExprs, newChild) => {
+          val newSkylineItems = skylineItems.zip(newExprs).map {
+            case (skylineItems, expr) => skylineItems.copy(child = expr)
+          }
+          SkylineOperator(distinct, complete, newSkylineItems, filter.copy(child = newChild))
+        })
+
+      case SkylineOperator(distinct, complete, skylineItems,
+        sort@Sort(_, _,
+          filter@Filter(_, agg: Aggregate)
+      ) ) if agg.resolved =>
+        // We should resolve the references normally based on child (agg.output) first.
+        val maybeResolved = skylineItems.map(_.child).map(resolveExpressionByPlanOutput(_, agg))
+        resolveOperatorWithAggregate(maybeResolved, agg, (newExprs, newChild) => {
+          val newSkylineItems = skylineItems.zip(newExprs).map {
+            case (skylineItems, expr) => skylineItems.copy(child = expr)
+          }
+          SkylineOperator(distinct, complete, newSkylineItems,
+            sort.copy(child = filter.copy(child = newChild)))
         })
     }
 

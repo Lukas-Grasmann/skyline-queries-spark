@@ -170,6 +170,39 @@ def desc(col: "ColumnOrName") -> Column:
     return col.desc() if isinstance(col, Column) else _invoke_function("desc", col)
 
 
+@since(3.4)
+def smin(col):
+    """
+    Returns a minimization (MIN) dimension for a given skyline.
+    """
+    return (
+        col.smin() if isinstance(col, Column)
+        else _invoke_function("smin", col)
+    )
+
+
+@since(3.4)
+def smax(col):
+    """
+    Returns a maximization (MAX) dimension for a given skyline.
+    """
+    return (
+        col.smax() if isinstance(col, Column)
+        else _invoke_function("smax", col)
+    )
+
+
+@since(3.4)
+def sdiff(col):
+    """
+    Returns a difference (DIFF) dimension for a given skyline.
+    """
+    return (
+        col.sdiff() if isinstance(col, Column)
+        else _invoke_function("sdiff", col)
+    )
+
+
 @since(1.3)
 def sqrt(col: "ColumnOrName") -> Column:
     """

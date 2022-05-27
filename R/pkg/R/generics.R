@@ -546,6 +546,18 @@ setGeneric("sample",
              standardGeneric("sample")
            })
 
+#' @rdname skyline
+setGeneric("skyline", function(x, col, ...) { standardGeneric("skyline") })
+
+#' @rdname skylineDistinct
+setGeneric("skylineDistinct", function(x, col, ...) { standardGeneric("skylineDistinct") })
+
+#' @rdname skylineComplete
+setGeneric("skylineComplete", function(x, col, ...) { standardGeneric("skylineComplete") })
+
+#' @rdname skylineDistinctComplete
+setGeneric("skylineDistinctComplete", function(x, col, ...) { standardGeneric("skylineDistinctComplete") })
+
 #' @rdname rollup
 setGeneric("rollup", function(x, ...) { standardGeneric("rollup") })
 
@@ -727,6 +739,15 @@ setGeneric("rlike", function(x, ...) { standardGeneric("rlike") })
 
 #' @rdname columnfunctions
 setGeneric("ilike", function(x, ...) { standardGeneric("ilike") })
+
+#' @rdname sdiff
+setGeneric("sdiff", function(x) { standardGeneric("sdiff") })
+
+#' @rdname smax
+setGeneric("smax", function(x) { standardGeneric("smax") })
+
+#' @rdname smin
+setGeneric("smin", function(x) { standardGeneric("smin") })
 
 #' @rdname startsWith
 setGeneric("startsWith", function(x, prefix) { standardGeneric("startsWith") })

@@ -2403,6 +2403,164 @@ setClassUnion("characterOrColumn", c("character", "Column"))
 
 setClassUnion("numericOrColumn", c("numeric", "Column"))
 
+#' Compute the skyline of a given dataset.
+#'
+#' Comptue the skyline of a SparkDataFrame by using the specified column(s) as skyline dimensions.
+#'
+#' @param x a SparkDataFrame as input to the skyline.
+#' @param col a character or Column object indicating the fields to sort on
+#' @param ... additional skyline dimensions
+#' @param minMaxDiff an argument indicating MIN/MAX/DIFF for each column when
+#'                   a character vector is specified for col
+#' @param distinct a logical argument indicating whether the skyline is distinct
+#' @param complete a logical argument indicating whether the input dataset is complete
+#'                 can force algorthms for complete datasets to be used
+#' @return A SparkDataFrame that contains the skyline.
+#' @family SparkDataFrame functions
+#' @aliases skyline,SparkDataFrame,Column-method
+#' @rdname skyline
+#' @name skyline
+#' @examples
+#'\dontrun{
+#' sparkR.session()
+#' path <- "path/to/file.json"
+#' df <- read.json(path)
+#' skyline(df, smin(df$col1))
+#' skyline(df, smin(df$col1), smax(abs(df$col2)))
+#' skyline(df, "col1", minMaxDiff = c("min"))
+#' skyline(df, "col1", "col2", minMaxDiff = c("min", "max"))
+#' }
+#' @note skyline(SparkDataFrame, Column) since 3.4
+setMethod("skyline",
+            signature(x = "SparkDataFrame", col = "Column"),
+            function(x, col, ...,
+                     distinct = FALSE,
+                     complete = FALSE) {
+                jcols <- lapply(list(col, ...), function(c) {
+                    c@jc
+                })
+
+                sdf <- if (distinct && complete) {
+                  callJMethod(x@sdf, "skylineDistinctComplete", jcols)
+                } else if (distinct) {
+                  callJMethod(x@sdf, "skylineDistinct", jcols)
+                } else if (complete) {
+                  callJMethod(x@sdf, "skylineComplete", jcols)
+                } else {
+                  callJMethod(x@sdf, "skyline", jcols)
+                }
+                dataFrame(sdf)
+            })
+
+#' @rdname skyline
+#' @name skyline
+#' @aliases skyline,SparkDataFrame,character-method
+#' @note skyline(SparkDataFrame, character) since 3.4.0
+setMethod("skyline",
+            signature(x = "SparkDataFrame", col = "character"),
+            function(
+              x, col, ...,
+              minMaxDiff = "min",
+              distinct = FALSE,
+              complete = FALSE
+            ) {
+              # all skyline dimensions
+              skyline_dimensions <- list(col, ...)
+
+              # check length of string parameters given
+              if (length(minMaxDiff) == 1)  {
+                # if only one paremeter is given duplicate as needed to make lenghts equal
+                minMaxDiff <- rep(minMaxDiff, length(skyline_dimensions))
+              } else if (length(minMaxDiff) != length(skyline_dimensions)) {
+                # throw error if lengths are neithe 1 nor equal
+                stop("Arguments 'col' and 'minMaxDiff' must have the same length")
+              }
+
+              # convert MIN/MAX/DIFF values to columnar function calls
+              jcols <- lapply(seq_len(length(minMaxDiff)), function(i) {
+                if (tolower(minMaxDiff[[i]]) == "min") {
+                  smin(getColumn(x, skyline_dimensions[[i]]))
+                } else if (tolower(minMaxDiff[[i]]) == "max") {
+                  smax(getColumn(x, skyline_dimensions[[i]]))
+                } else if (tolower(minMaxDiff[[i]]) == "diff") {
+                  sdiff(getColumn(x, skyline_dimensions[[i]]))
+                } else {
+                  stop("Argument 'minMaxDiff' must be one of min/max/diff")
+                }
+              })
+
+              # call correct method from Scala/Java according to flags distinct and complete
+              if (distinct && complete) {
+                do.call("skylineDistinctComplete", c(x, jcols))
+              } else if (distinct) {
+                do.call("skylineDistinct", c(x, jcols))
+              } else if (complete) {
+                do.call("skylineComplete", c(x, jcols))
+              } else {
+                do.call("skyline", c(x, jcols))
+              }
+            })
+
+#' @rdname skylineDistinct
+#' @name skylineDistinct
+#' @aliases skylineDistinct,SparkDataFrame,columnar-method
+#' @note skylineDistinct(SparkDataFrame, Column) since 3.4.0
+setMethod("skylineDistinct",
+          signature(x = "SparkDataFrame", col = "Column"),
+          function(x, col, ...) {
+            skyline(x, col, ..., distinct = TRUE)
+          })
+
+#' @rdname skylineDistinct
+#' @name skylineDistinct
+#' @aliases skylineDistinct,SparkDataFrame,character-method
+#' @note skylineDistinct(SparkDataFrame, character) since 3.4.0
+setMethod("skylineDistinct",
+          signature(x = "SparkDataFrame", col = "character"),
+          function(x, col, ..., minMaxDiff = "min") {
+            skyline(x, col, ..., minMaxDiff = minMaxDiff, distinct = TRUE)
+          })
+
+#' @rdname skylineComplete
+#' @name skylineComplete
+#' @aliases skylineComplete,SparkDataFrame,columnar-method
+#' @note skylineComplete(SparkDataFrame, Column) since 3.4.0
+setMethod("skylineComplete",
+          signature(x = "SparkDataFrame", col = "Column"),
+          function(x, col, ...) {
+            skyline(x, col, ..., complete = TRUE)
+          })
+
+#' @rdname skylineComplete
+#' @name skylineComplete
+#' @aliases skylineComplete,SparkDataFrame,character-method
+#' @note skylineComplete(SparkDataFrame, character) since 3.4.0
+setMethod("skylineComplete",
+          signature(x = "SparkDataFrame", col = "character"),
+          function(x, col, ..., minMaxDiff = "min") {
+            skyline(x, col, ..., minMaxDiff = minMaxDiff, complete = TRUE)
+          })
+
+#' @rdname skylineDistinctComplete
+#' @name skylineDistinctComplete
+#' @aliases skylineDistinctComplete,SparkDataFrame,columnar-method
+#' @note skylineDistinctComplete(SparkDataFrame, Column) since 3.4.0
+setMethod("skylineDistinctComplete",
+          signature(x = "SparkDataFrame", col = "Column"),
+          function(x, col, ...) {
+            skyline(x, col, ..., distinct = TRUE, complete = TRUE)
+          })
+
+#' @rdname skylineDistinctComplete
+#' @name skylineDistinctComplete
+#' @aliases skylineDistinctComplete,SparkDataFrame,character-method
+#' @note skylineDistinctComplete(SparkDataFrame, character) since 3.4.0
+setMethod("skylineDistinctComplete",
+          signature(x = "SparkDataFrame", col = "character"),
+          function(x, col, ..., minMaxDiff = "min") {
+            skyline(x, col, ..., minMaxDiff = minMaxDiff, distinct = TRUE, complete = TRUE)
+          })
+
 #' Arrange Rows by Variables
 #'
 #' Sort a SparkDataFrame by the specified column(s).

@@ -41,6 +41,7 @@ import org.apache.spark.sql.catalyst.analysis._
 import org.apache.spark.sql.catalyst.catalog.HiveTableRelation
 import org.apache.spark.sql.catalyst.encoders._
 import org.apache.spark.sql.catalyst.expressions._
+import org.apache.spark.sql.catalyst.expressions.skyline._
 import org.apache.spark.sql.catalyst.json.{JacksonGenerator, JSONOptions}
 import org.apache.spark.sql.catalyst.optimizer.CombineUnions
 import org.apache.spark.sql.catalyst.parser.{ParseException, ParserUtils}
@@ -2011,6 +2012,288 @@ class Dataset[T] private[sql](
    */
   @scala.annotation.varargs
   def agg(expr: Column, exprs: Column*): DataFrame = groupBy().agg(expr, exprs : _*)
+
+  /**
+   * Skyline for multiple (but at least one) skyline dimensions.
+   * Skyline IS NOT distinct
+   * {{{
+   *   // df.skyline((...), (...), ...) where each bracket corresponds to a dimension
+   *   df.skyline(("price", "min"), ("distance", "min"))
+   * }}}
+   *
+   * @group skyline
+   * @since 3.4.0
+   */
+  @scala.annotation.varargs
+  def skyline(expr: (String, String), exprs: (String, String)*): DataFrame =
+    skylineInternal(distinct = false, complete = false, expr, exprs: _*)
+
+  /**
+   * Skyline for multiple (but at least one) skyline dimensions.
+   * Skyline IS distinct
+   * {{{
+   *   // df.skylineDistinct((...), (...), ...) where each bracket corresponds to a dimension
+   *   df.skylineDistinct(("price", "min"), ("distance", "min"))
+   * }}}
+   *
+   * @group skyline
+   * @since 3.4.0
+   */
+  @scala.annotation.varargs
+  def skylineDistinct(expr: (String, String), exprs: (String, String)*): DataFrame =
+    skylineInternal(distinct = true, complete = false, expr, exprs: _*)
+
+  /**
+   * Skyline for multiple (but at least one) skyline dimensions.
+   * Forces Spark to assume a complete dataset (no missing values) and chose algorithms accordingly.
+   * Skyline IS NOT distinct
+   * {{{
+   *   // df.skyline((...), (...), ...) where each bracket corresponds to a dimension
+   *   df.skyline(("price", "min"), ("distance", "min"))
+   * }}}
+   *
+   * @group skyline
+   * @since 3.4.0
+   */
+  @scala.annotation.varargs
+  def skylineComplete(expr: (String, String), exprs: (String, String)*): DataFrame =
+    skylineInternal(distinct = false, complete = true, expr, exprs: _*)
+
+  /**
+   * Skyline for multiple (but at least one) skyline dimensions.
+   * Forces Spark to assume a complete dataset (no missing values) and chose algorithms accordingly.
+   * Skyline IS distinct
+   * {{{
+   *   // df.skylineDistinct((...), (...), ...) where each bracket corresponds to a dimension
+   *   df.skylineDistinct(("price", "min"), ("distance", "min"))
+   * }}}
+   *
+   * @group skyline
+   * @since 3.4.0
+   */
+  @scala.annotation.varargs
+  def skylineDistinctComplete(expr: (String, String), exprs: (String, String)*): DataFrame =
+    skylineInternal(distinct = true, complete = true, expr, exprs: _*)
+
+  /**
+   * Internal skyline function for handling skylines with string specifications.
+   *
+   * This function does the actual generation of the skyline logical plan nodes.
+   * It is used for all functions that accept skylines in string format.
+   * (As opposed to columnar specifications i.e. col().smin etc.)
+   *
+   * At least one expression must be given and number of expressions is unlimited.
+   *
+   * @param distinct boolean whether or not the skyline result items are distinct
+   * @param expr mandatory expression tuple in format (column, min/max/diff)
+   * @param exprs further expressions in format (column, min/max/diff),
+   *              may be empty,
+   *              may contain arbitrary number of tuples
+   * @return (untyped) DataFrame of logical plan that contains a skyline node
+   *
+   * @since 3.4.0
+   */
+  @scala.annotation.varargs
+  private def skylineInternal(
+                               distinct: Boolean,
+                               complete: Boolean,
+                               expr: (String, String),
+                               exprs: (String, String)*
+                             ): DataFrame = withPlan {
+    SkylineOperator.createSkylineOperator(
+      distinct,
+      complete,
+      (expr +: exprs).map(
+        f => SkylineDimension.createSkylineDimension(Column(f._1).expr, f._2)
+      ),
+      logicalPlan
+    )
+  }
+
+  /**
+   * Skyline for multiple dimensions as columns
+   * Skyline IS NOT distinct
+   * {{{
+   *   // df.skyline(col(...).smin, col(...).smax, col(...).sdiff, ...)
+   *   // where each bracket corresponds to a dimension
+   *   df.skyline(col("price").smin, col("stars").smax)
+   * }}}
+   *
+   * @group skyline
+   * @since 3.4.0
+   */
+  @scala.annotation.varargs
+  def skyline(exprs: Column*): DataFrame = withPlan {
+    SkylineOperator.createSkylineOperator(
+      distinct = false,
+      complete = false,
+      (exprs).map(
+        _.expr match {
+          case s @ SkylineDimension(_, _) => s
+          case _ =>
+            throw new IllegalArgumentException(
+              s"""
+                 | Illegal item found in expression. Must be SkylineDimension.
+                """.stripMargin
+            )
+        }
+      ),
+      logicalPlan
+    )
+  }
+
+  /**
+   * Skyline for multiple dimensions as columns
+   * Skyline IS distinct
+   * {{{
+   *   // df.skylineDistinct(col(...).smin, col(...).smax, col(...).sdiff, ...)
+   *   // where each bracket corresponds to a dimension
+   *   df.skylineDistinct(col("price").smin, col("stars").smax)
+   * }}}
+   *
+   * @group skyline
+   * @since 3.4.0
+   */
+  @scala.annotation.varargs
+  def skylineDistinct(exprs: Column*): DataFrame = withPlan {
+    SkylineOperator.createSkylineOperator(
+      distinct = true,
+      complete = false,
+      (exprs).map(
+        _.expr match {
+          case s @ SkylineDimension(_, _) => s
+          case _ =>
+            throw new IllegalArgumentException(
+              s"""
+                 | Illegal item found in expression. Must be SkylineDimension.
+                """.stripMargin
+            )
+        }
+      ),
+      logicalPlan
+    )
+  }
+
+  /**
+   * Skyline for multiple dimensions as columns
+   * Forces Spark to assume a complete dataset (no missing values) and chose algorithms accordingly.
+   * Skyline IS NOT distinct
+   * {{{
+   *   // df.skyline(col(...).smin, col(...).smax, col(...).sdiff, ...)
+   *   // where each bracket corresponds to a dimension
+   *   df.skyline(col("price").smin, col("stars").smax)
+   * }}}
+   *
+   * @group skyline
+   * @since 3.4.0
+   */
+  @scala.annotation.varargs
+  def skylineComplete(exprs: Column*): DataFrame = withPlan {
+    SkylineOperator.createSkylineOperator(
+      distinct = false,
+      complete = true,
+      (exprs).map(
+        _.expr match {
+          case s @ SkylineDimension(_, _) => s
+          case _ =>
+            throw new IllegalArgumentException(
+              s"""
+                 | Illegal item found in expression. Must be SkylineDimension.
+                """.stripMargin
+            )
+        }
+      ),
+      logicalPlan
+    )
+  }
+
+  /**
+   * Skyline for multiple dimensions as columns
+   * Forces Spark to assume a complete dataset (no missing values) and chose algorithms accordingly.
+   * Skyline IS distinct
+   * {{{
+   *   // df.skylineDistinct(col(...).smin, col(...).smax, col(...).sdiff, ...)
+   *   // where each bracket corresponds to a dimension
+   *   df.skylineDistinct(col("price").smin, col("stars").smax)
+   * }}}
+   *
+   * @group skyline
+   * @since 3.4.0
+   */
+  @scala.annotation.varargs
+  def skylineDistinctComplete(exprs: Column*): DataFrame = withPlan {
+    SkylineOperator.createSkylineOperator(
+      distinct = true,
+      complete = true,
+      (exprs).map(
+        _.expr match {
+          case s @ SkylineDimension(_, _) => s
+          case _ =>
+            throw new IllegalArgumentException(
+              s"""
+                 | Illegal item found in expression. Must be SkylineDimension.
+                """.stripMargin
+            )
+        }
+      ),
+      logicalPlan
+    )
+  }
+
+
+  /**
+   * Skyline shorthand for minimizing a dimension
+   * {{{
+   * // df.skyline(df.smin(...), df.smin(...), ...)
+   * // Skyline minimization of a dimension
+   * df.skyline(df.smin("price"), df.smin("distance"))
+   * // which is shorthand for
+   * df.skyline(col("price").smin, col("distance").smin)
+   * // and equivalent to
+   * df.skyline(df.smin("price"), df.smin("distance"))
+   * }}}
+   *
+   * @group skyline
+   * @since 3.4.0
+   */
+  def smin(expr: String): Column =
+    Column( SkylineDimension.createSkylineDimension( Column(expr).expr, SkylineMin ) )
+
+  /**
+   * Skyline shorthand for maximizing a dimension
+   * {{{
+   * // df.skyline(df.smax(...), df.smax(...), ...)
+   * // Skyline maximization of a dimension
+   * df.skyline(df.smax("price"), df.smax("distance"))
+   * // which is shorthand for
+   * df.skyline(col("price").smax, col("distance").smax)
+   * and equivalent to
+   * df.skyline(df.smax("price"), df.smax("distance"))
+   * }}}
+   *
+   * @group skyline
+   * @since 3.4.0
+   */
+  def smax(expr: String): Column =
+    Column( SkylineDimension.createSkylineDimension( Column(expr).expr, SkylineMax ) )
+
+  /**
+   * Skyline shorthand for difference of a dimension
+   * {{{
+   * // df.skyline(df.sdiff(...), df.sdiff(...), ...)
+   * // Skyline difference of a dimension
+   * df.skyline(df.sdiff("price"), df.sdiff("distance"))
+   * // which is shorthand for
+   * df.skyline(col("price").sdiff, col("distance").sdiff)
+   * and equivalent to
+   * df.skyline(df.sdiff("price"), df.sdiff("distance"))
+   * }}}
+   *
+   * @group skyline
+   * @since 3.4.0
+   */
+  def sdiff(expr: String): Column =
+    Column( SkylineDimension.createSkylineDimension( Column(expr).expr, SkylineDiff ) )
 
  /**
   * Define (named) metrics to observe on the Dataset. This method returns an 'observed' Dataset

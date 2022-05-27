@@ -28,6 +28,7 @@ import org.apache.spark.sql.catalyst.analysis._
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.aggregate._
 import org.apache.spark.sql.catalyst.expressions.objects.Invoke
+import org.apache.spark.sql.catalyst.expressions.skyline.{SkylineDiff, SkylineDimension, SkylineIsComplete, SkylineIsDistinct, SkylineIsNotDistinct, SkylineMax, SkylineMin, SkylineOperator, SkylineUnspecifiedCompleteness}
 import org.apache.spark.sql.catalyst.plans.{Inner, JoinType}
 import org.apache.spark.sql.catalyst.plans.logical._
 import org.apache.spark.sql.types._
@@ -152,6 +153,10 @@ package object dsl {
     def desc_nullsFirst: SortOrder = SortOrder(expr, Descending, NullsFirst, Seq.empty)
     def as(alias: String): NamedExpression = Alias(expr, alias)()
     def as(alias: Symbol): NamedExpression = Alias(expr, alias.name)()
+
+    def smin: SkylineDimension = SkylineDimension(expr, SkylineMin)
+    def smax: SkylineDimension = SkylineDimension(expr, SkylineMax)
+    def sdiff: SkylineDimension = SkylineDimension(expr, SkylineDiff)
   }
 
   trait ExpressionConversions {
@@ -460,6 +465,35 @@ package object dsl {
           partitionSpec: Seq[Expression],
           orderSpec: Seq[SortOrder]): LogicalPlan =
         Window(windowExpressions, partitionSpec, orderSpec, logicalPlan)
+
+      def skyline(skylineDimensions: SkylineDimension*): LogicalPlan =
+        SkylineOperator(
+          SkylineIsNotDistinct, SkylineUnspecifiedCompleteness, skylineDimensions, logicalPlan
+        )
+
+      def skylineDistinct(skylineDimensions: SkylineDimension*): LogicalPlan =
+        SkylineOperator(
+          SkylineIsDistinct, SkylineUnspecifiedCompleteness, skylineDimensions, logicalPlan
+        )
+
+      def skylineComplete(skylineDimensions: SkylineDimension*): LogicalPlan =
+        SkylineOperator(
+          SkylineIsNotDistinct, SkylineIsComplete, skylineDimensions, logicalPlan
+        )
+
+      def skylineDistinctComplete(skylineDimensions: SkylineDimension*): LogicalPlan =
+        SkylineOperator(
+          SkylineIsDistinct, SkylineIsComplete, skylineDimensions, logicalPlan
+        )
+
+      def smin(expr: Expression): SkylineDimension =
+        SkylineDimension(expr, SkylineMin)
+
+      def smax(expr: Expression): SkylineDimension =
+        SkylineDimension(expr, SkylineMax)
+
+      def sdiff(expr: Expression): SkylineDimension =
+        SkylineDimension(expr, SkylineDiff)
 
       def subquery(alias: Symbol): LogicalPlan = SubqueryAlias(alias.name, logicalPlan)
       def subquery(alias: String): LogicalPlan = SubqueryAlias(alias, logicalPlan)

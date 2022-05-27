@@ -25,6 +25,7 @@ import org.apache.spark.sql.catalyst.analysis._
 import org.apache.spark.sql.catalyst.encoders.{encoderFor, ExpressionEncoder}
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.aggregate.AggregateExpression
+import org.apache.spark.sql.catalyst.expressions.skyline.{SkylineDiff, SkylineDimension, SkylineMax, SkylineMin}
 import org.apache.spark.sql.catalyst.parser.CatalystSqlParser
 import org.apache.spark.sql.catalyst.util.{toPrettySQL, CharVarcharUtils}
 import org.apache.spark.sql.execution.aggregate.TypedAggregateExpression
@@ -1291,6 +1292,51 @@ class Column(val expr: Expression) extends Logging {
    * @since 2.1.0
    */
   def asc_nulls_last: Column = withExpr { SortOrder(expr, Ascending, NullsLast, Seq.empty) }
+
+  /**
+   * Returns a set of skyline options for minimization (MIN) according to the given expression.
+   *
+   * {{{
+   *   // Scala: create a minimization for the given skyline attribute
+   *   df.skyline(col("distance").smin)
+   * }}}
+   *
+   * @group skyline_ops
+   * @since 3.4.0
+   */
+  def smin: Column = withExpr {
+    SkylineDimension.createSkylineDimension(expr, SkylineMin)
+  }
+
+  /**
+   * Returns a set of skyline options for maximization (MAX) according to the given expression.
+   *
+   * {{{
+   *   // Scala: create a maximization for the given skyline attribute
+   *   df.skyline(col("distance").smax)
+   * }}}
+   *
+   * @group skyline_ops
+   * @since 3.4.0
+   */
+  def smax: Column = withExpr {
+    SkylineDimension.createSkylineDimension(expr, SkylineMax)
+  }
+
+  /**
+   * Returns a set of skyline options for difference (DIFF) according to the given expression.
+   *
+   * {{{
+   *   // Scala: create a difference distinction for the given skyline attribute
+   *   df.skyline(col("distance").sdiff)
+   * }}}
+   *
+   * @group skyline_ops
+   * @since 3.4.0
+   */
+  def sdiff: Column = withExpr {
+    SkylineDimension.createSkylineDimension(expr, SkylineDiff)
+  }
 
   /**
    * Prints the expression to the console for debugging purposes.

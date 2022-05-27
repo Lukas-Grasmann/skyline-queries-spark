@@ -70,7 +70,8 @@ operators <- list(
 column_functions1 <- c(
   "asc", "asc_nulls_first", "asc_nulls_last",
   "desc", "desc_nulls_first", "desc_nulls_last",
-  "isNaN", "isNull", "isNotNull"
+  "isNaN", "isNull", "isNotNull",
+  "smin", "smax", "sdiff"
 )
 column_functions2 <- c("like", "rlike", "ilike", "getField", "getItem", "contains")
 
