@@ -111,7 +111,7 @@ class SkylineBasicSuite extends AnalysisTest{
     comparePlans(optimized, correctAnswer)
   }
 
-  test("transform single dimensional distinct DIFF skyline") {
+  test("transform two-dimensional distinct DIFF skyline") {
     val query = testRelation.skylineDistinct(
       SkylineDimension('a, SkylineDiff),
       SkylineDimension('b, SkylineDiff)

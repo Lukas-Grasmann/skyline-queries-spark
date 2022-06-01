@@ -2524,8 +2524,8 @@ test_that("skyline() and its variants on a DataFrame", {
                                   "{\"hotel\":5, \"stars\": 2}",
                                   "{\"hotel\":6, \"price\": 50, \"stars\": 1}",
                                   "{\"hotel\":7, \"price\": 200, \"stars\": 5}")
-  skylineInocmpletePath <- tempfile(pattern = "sparkr-test-skyline", fileext = ".tmp")
-  writeLines(skylineMockLinesIncomplete, skylineInocmpletePath)
+  skylineIncompletePath <- tempfile(pattern = "sparkr-test-skyline", fileext = ".tmp")
+  writeLines(skylineMockLinesIncomplete, skylineIncompletePath)
 
   expected_skyline <- data.frame(
     hotel = c(2, 3, 4),
@@ -2544,33 +2544,51 @@ test_that("skyline() and its variants on a DataFrame", {
     stars = c(2, 5)
   )
 
-  expected_skyline_distinct_incomplete <- data.frame(
+  expected_skyline_dist_incompl <- data.frame(
     price = c(50, 150),
     stars = c(2, 5)
   )
 
   # complete skyline queries (non-forced)
   df <- read.json(skylinePath)
-  skyline <- skyline(df, smin(df$price), smax(df$stars))
+  skyline <- arrange(skyline(df, smin(df$price), smax(df$stars)), "hotel")
   expect_equal(collect(skyline), expected_skyline)
 
-  skyline <- select(skylineDistinct(df, smin(df$price), smax(df$stars)), "price", "stars")
+  skyline <- arrange(
+    select(
+      skylineDistinct(df, smin(df$price), smax(df$stars)),
+      "price",
+      "stars"
+    ), "price"
+  )
   expect_equal(collect(skyline), expected_skyline_distinct)
 
   # complete skyline queries (forced)
-  skyline <- skylineComplete(df, smin(df$price), smax(df$stars))
+  skyline <- arrange(skylineComplete(df, smin(df$price), smax(df$stars)), "hotel")
   expect_equal(collect(skyline), expected_skyline)
 
-  skyline <- select(skylineDistinctComplete(df, smin(df$price), smax(df$stars)), "price", "stars")
+  skyline <- arrange(
+    select(
+      skylineDistinctComplete(df, smin(df$price), smax(df$stars)),
+      "price",
+      "stars"
+    ), "price"
+  )
   expect_equal(collect(skyline), expected_skyline_distinct)
 
   # incomplete skyline queries
-  df <- read.json(skylineInocmpletePath)
-  skyline <- skyline(df, smin(df$price), smax(df$stars))
+  df <- read.json(skylineIncompletePath)
+  skyline <- arrange(skyline(df, smin(df$price), smax(df$stars)), "hotel")
   expect_equal(collect(skyline), expected_skyline_incomplete)
 
-  skyline <- select(skylineDistinctComplete(df, smin(df$price), smax(df$stars)), "price", "stars")
-  expect_equal(collect(skyline), expected_skyline_distinct_incomplete)
+  skyline <- arrange(
+    select(
+      skylineDistinct(df, smin(df$price), smax(df$stars)),
+      "price",
+      "stars"
+    ), "price"
+  )
+  expect_equal(collect(skyline), expected_skyline_dist_incompl)
 })
 
 test_that("arrange() and orderBy() on a DataFrame", {

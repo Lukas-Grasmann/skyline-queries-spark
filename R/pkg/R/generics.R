@@ -556,7 +556,10 @@ setGeneric("skylineDistinct", function(x, col, ...) { standardGeneric("skylineDi
 setGeneric("skylineComplete", function(x, col, ...) { standardGeneric("skylineComplete") })
 
 #' @rdname skylineDistinctComplete
-setGeneric("skylineDistinctComplete", function(x, col, ...) { standardGeneric("skylineDistinctComplete") })
+setGeneric("skylineDistinctComplete",
+           function(x, col, ...) {
+             standardGeneric("skylineDistinctComplete")
+           })
 
 #' @rdname rollup
 setGeneric("rollup", function(x, ...) { standardGeneric("rollup") })

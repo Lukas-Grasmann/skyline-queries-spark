@@ -1737,32 +1737,42 @@ class DataFrame(PandasMapOpsMixin, PandasConversionMixin):
         dimensions.
         Result items of this skyline call ARE NOT distinct.
 
-        .. versionadded:: 3.4
+        .. versionadded:: 3.4.0
 
         Parameters
         ----------
         :param cols: str, list, or :class:`Column` for each skyline dimension
         :param kwargs: (optional) specifications for minMaxDiff as :class:`str`
-
+/media/sf_vbox_share/2022_06_01/column.py
         Examples
         --------
+        >>> df_skyline = spark.createDataFrame([(1, 150, 3), (2, 50, 2), (3, 150, 5)], \
+                ["hotel", "price", "stars"])
+
         Skylines using colmnal specifications
-        >>> df.skyline(df.price.smin()).collect()
-        >>> df.skyline(df.price.smin(), df.distance.smin()).collect()
+        >>> df_skyline.skyline(df_skyline.price.smin()).orderBy("hotel").collect()
+        [Row(hotel=2, price=50, stars=2)]
+        >>> df_skyline.skyline(df_skyline.price.smin(), df_skyline.stars.smax()) \
+                .orderBy("hotel").collect()
+        [Row(hotel=2, price=50, stars=2), Row(hotel=3, price=150, stars=5)]
+
         Same skylines using parameters
-        >>> df.skyline("price", minMaxDiff="min").collect()
-        >>> df.skyline(["price", "distance"], minMaxDiff=["min", "min"]).collect()
+        >>> df_skyline.skyline("price", minMaxDiff="min").orderBy("hotel").collect()
+        [Row(hotel=2, price=50, stars=2)]
+        >>> df_skyline.skyline(["price", "stars"], minMaxDiff=["min", "max"]) \
+                .orderBy("hotel").collect()
+        [Row(hotel=2, price=50, stars=2), Row(hotel=3, price=150, stars=5)]
         """
         skyline = self._skyline(cols, kwargs)
         jdf = self._jdf.skyline(skyline)
-        return DataFrame(jdf, self.sql_ctx)
+        return DataFrame(jdf, self.sparkSession)
 
     def skylineDistinct(self, *cols, **kwargs):
         """Returns a new :class:`DataFrame` containing the skyline with according to the specified
         dimensions.
         Result items of this skyline call ARE distinct.
 
-        .. versionadded:: 3.4
+        .. versionadded:: 3.4.0
 
         Parameters
         ----------
@@ -1771,16 +1781,26 @@ class DataFrame(PandasMapOpsMixin, PandasConversionMixin):
 
         Examples
         --------
+        >>> df_skyline = spark.createDataFrame([(1, 150, 3), (2, 50, 2), (3, 150, 5)], \
+                ["hotel", "price", "stars"])
+
         Skylines using columnar specifications
-        >>> df.skylineDistinct(df.price.smin()).collect()
-        >>> df.skylineDistinct(df.price.smin(), df.distance.smin()).collect()
+        >>> df_skyline.skylineDistinct(df_skyline.price.smin()).orderBy("hotel").collect()
+        [Row(hotel=2, price=50, stars=2)]
+        >>> df_skyline.skylineDistinct(df_skyline.price.smin(), df_skyline.stars.smax()) \
+                .orderBy("hotel").collect()
+        [Row(hotel=2, price=50, stars=2), Row(hotel=3, price=150, stars=5)]
+
         Same skylines using parameters
-        >>> df.skylineDistinct("price", minMaxDiff="min").collect()
-        >>> df.skylineDistinct(["price", "distance"], minMaxDiff=["min", "min"]).collect()
+        >>> df_skyline.skylineDistinct("price", minMaxDiff="min").orderBy("hotel").collect()
+        [Row(hotel=2, price=50, stars=2)]
+        >>> df_skyline.skylineDistinct(["price", "stars"], minMaxDiff=["min", "max"]) \
+                .orderBy("hotel").collect()
+        [Row(hotel=2, price=50, stars=2), Row(hotel=3, price=150, stars=5)]
         """
         skyline = self._skyline(cols, kwargs)
         jdf = self._jdf.skylineDistinct(skyline)
-        return DataFrame(jdf, self.sql_ctx)
+        return DataFrame(jdf, self.sparkSession)
 
     def skylineComplete(self, *cols, **kwargs):
         """Returns a new :class:`DataFrame` containing the skyline with according to the
@@ -1789,7 +1809,7 @@ class DataFrame(PandasMapOpsMixin, PandasConversionMixin):
         Forces Spark to assume that all inputs are complete and chose the skyline algorithm
         accordingly.
 
-        .. versionadded:: 3.4
+        .. versionadded:: 3.4.0
 
         Parameters
         ----------
@@ -1798,16 +1818,26 @@ class DataFrame(PandasMapOpsMixin, PandasConversionMixin):
 
         Examples
         --------
+        >>> df_skyline = spark.createDataFrame([(1, 150, 3), (2, 50, 2), (3, 150, 5)], \
+                ["hotel", "price", "stars"])
+
         Skylines using columnar specifications
-        >>> df.skylineComplete(df.price.smin()).collect()
-        >>> df.skylineComplete(df.price.smin(), df.distance.smin()).collect()
+        >>> df_skyline.skylineComplete(df_skyline.price.smin()).orderBy("hotel").collect()
+        [Row(hotel=2, price=50, stars=2)]
+        >>> df_skyline.skylineComplete(df_skyline.price.smin(), df_skyline.stars.smax()) \
+                .orderBy("hotel").collect()
+        [Row(hotel=2, price=50, stars=2), Row(hotel=3, price=150, stars=5)]
+
         Same skylines using parameters
-        >>> df.skylineComplete("price", minMaxDiff="min").collect()
-        >>> df.skylineComplete(["price", "distance"], minMaxDiff=["min", "min"]).collect()
+        >>> df_skyline.skylineComplete("price", minMaxDiff="min").orderBy("hotel").collect()
+        [Row(hotel=2, price=50, stars=2)]
+        >>> df_skyline.skylineComplete(["price", "stars"], minMaxDiff=["min", "max"]) \
+                .orderBy("hotel").collect()
+        [Row(hotel=2, price=50, stars=2), Row(hotel=3, price=150, stars=5)]
         """
         skyline = self._skyline(cols, kwargs)
         jdf = self._jdf.skylineComplete(skyline)
-        return DataFrame(jdf, self.sql_ctx)
+        return DataFrame(jdf, self.sparkSession)
 
     def skylineDistinctComplete(self, *cols, **kwargs):
         """Returns a new :class:`DataFrame` containing the skyline with according to the
@@ -1816,7 +1846,7 @@ class DataFrame(PandasMapOpsMixin, PandasConversionMixin):
         Forces Spark to assume that all inputs are complete and chose the skyline algorithm
         accordingly.
 
-        .. versionadded:: 3.4
+        .. versionadded:: 3.4.0
 
         Parameters
         ----------
@@ -1825,16 +1855,26 @@ class DataFrame(PandasMapOpsMixin, PandasConversionMixin):
 
         Examples
         --------
+        >>> df_skyline = spark.createDataFrame([(1, 150, 3), (2, 50, 2), (3, 150, 5)], \
+                ["hotel", "price", "stars"])
+
         Skylines using columnar specifications
-        >>> df.skylineDistinctComplete(df.price.smin()).collect()
-        >>> df.skylineDistinctComplete(df.price.smin(), df.distance.smin()).collect()
+        >>> df_skyline.skylineDistinctComplete(df_skyline.price.smin()).orderBy("hotel").collect()
+        [Row(hotel=2, price=50, stars=2)]
+        >>> df_skyline.skylineDistinctComplete(df_skyline.price.smin(), df_skyline.stars.smax()) \
+                .orderBy("hotel").collect()
+        [Row(hotel=2, price=50, stars=2), Row(hotel=3, price=150, stars=5)]
+
         Same skylines using parameters
-        >>> df.skylineDistinctComplete("price", minMaxDiff="min").collect()
-        >>> df.skylineDistinctComplete(["price", "distance"], minMaxDiff=["min", "min"]).collect()
+        >>> df_skyline.skylineDistinctComplete("price", minMaxDiff="min").orderBy("hotel").collect()
+        [Row(hotel=2, price=50, stars=2)]
+        >>> df_skyline.skylineDistinctComplete(["price", "stars"], minMaxDiff=["min", "max"]) \
+                .orderBy("hotel").collect()
+        [Row(hotel=2, price=50, stars=2), Row(hotel=3, price=150, stars=5)]
         """
         skyline = self._skyline(cols, kwargs)
         jdf = self._jdf.skylineDistinctComplete(skyline)
-        return DataFrame(jdf, self.sql_ctx)
+        return DataFrame(jdf, self.sparkSession)
 
     def _skyline(self, cols, kwargs):
         """Internal skyline processing handling different data types
@@ -1881,7 +1921,7 @@ class DataFrame(PandasMapOpsMixin, PandasConversionMixin):
 
             jcols = [jc.smin() if mmd.strip().lower() == "min"
                      else jc.smax() if mmd.strip().lower() == "max"
-            else jc.sdiff()
+                     else jc.sdiff()
                      for mmd, jc in zip(minMaxDiff, jcols)]
 
         return self._jseq(jcols)

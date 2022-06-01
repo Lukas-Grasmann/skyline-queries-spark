@@ -1073,7 +1073,7 @@ class AstBuilder extends SqlBaseParserBaseVisitor[AnyRef] with SQLConfHelper wit
       query: LogicalPlan): LogicalPlan = withOrigin(ctx)
   {
     // convert Java list of skyline items from context to Scala list
-    val skylineItems = ctx.skylineItems.asScala
+    val skylineItems = ctx.skylineItems.asScala.toSeq
 
     SkylineOperator(
       if (ctx.DISTINCT != null) {

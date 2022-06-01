@@ -822,8 +822,11 @@ class Column:
 
     Examples
     --------
+    >>> from pyspark.sql import Row
+    >>> df = spark.createDataFrame([(1, 150, 3), (2, 50, 2), (3, 150, 5)], \
+            ["hotel", "price", "stars"])
     >>> df.skyline(df.price.smin()).collect()
-    >>> df.skylineDistinct(df.price.smin()).collect()
+    [Row(hotel=2, price=50, stars=2)]
     """
 
     _smax_doc = """
@@ -833,8 +836,11 @@ class Column:
 
     Examples
     --------
-    >>> df.skyline(df.price.smax()).collect()
-    >>> df.skylineDistinct(df.price.smax()).collect()
+    >>> from pyspark.sql import Row
+    >>> df = spark.createDataFrame([(1, 150, 3), (2, 50, 2), (3, 150, 5)], \
+            ["hotel", "price", "stars"])
+    >>> df.skyline(df.stars.smax()).collect()
+    [Row(hotel=3, price=150, stars=5)]
     """
 
     _sdiff_doc = """
@@ -844,8 +850,11 @@ class Column:
 
     Examples
     --------
-    >>> df.skyline(df.price.sdiff()).collect()
-    >>> df.skylineDistinct(df.price.sdiff()).collect()
+    >>> from pyspark.sql import Row
+    >>> df = spark.createDataFrame([(1, 150, 3), (2, 50, 3), (3, 150, 3)], \
+            ["hotel", "price", "stars"])
+    >>> df.skyline(df.price.smin(), df.stars.sdiff()).collect()
+    [Row(hotel=2, price=50, stars=3)]
     """
 
     smin = _unary_op("smin", _smin_doc)
