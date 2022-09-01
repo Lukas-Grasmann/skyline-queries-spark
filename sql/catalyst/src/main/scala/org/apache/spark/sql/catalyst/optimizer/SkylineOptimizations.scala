@@ -34,13 +34,15 @@ final class SkylineOptimizations private { }
  * Optimizer rule for removing skylines that yield the original dataset as results.
  * In this case, we can remove the skyline operator in its entirety.
  */
-object RemoveRedundantSkylines extends Rule[LogicalPlan] {
+object RemoveRedundantSkylines extends Rule[LogicalPlan] with Logging {
   override def apply(plan: LogicalPlan): LogicalPlan = plan transformUp removeRedundantSkylines
 
   private val removeRedundantSkylines: PartialFunction[LogicalPlan, LogicalPlan] = {
     // remove skylines without any dimensions
     // this is caused i.e. by calling df.skyline() using the DataFrame/DataSet API.
     case SkylineOperator(_, _, skylineItems, child) if skylineItems.isEmpty =>
+      log.warn("Detected redundant skyline operator removed! " +
+        "Please ensure that original query is correct");
       child
     // in case of a non-distinct skyline with only DIFF dimensions there cannot be
     // any dominance between tuples
@@ -49,6 +51,7 @@ object RemoveRedundantSkylines extends Rule[LogicalPlan] {
     //       (see ReplaceDistinctDiffSkylines)
     case SkylineOperator(_@SkylineIsNotDistinct, _, skylineItems, child)
       if skylineItems.forall(_.minMaxDiff == SkylineDiff) =>
+      log.warn("Redundant skyline operator removed! Please ensure that original query is correct.");
       child
     // in all other cases we return the original skyline operator as-is
     case s @ SkylineOperator(_, _, _, _) => s
@@ -64,6 +67,8 @@ object RemoveRedundantSkylineDimensions extends Rule[LogicalPlan] {
 
   private val removeRedundantDimensions: PartialFunction[LogicalPlan, LogicalPlan] = {
     case SkylineOperator(distinct, complete, skylineItems, child) if skylineItems.nonEmpty =>
+      log.warn("Redundant skyline dimension removed! " +
+        "Please ensure that original query is correct.");
       SkylineOperator(distinct, complete, skylineItems.distinct, child)
     case s @ SkylineOperator(_, _, _, _) => s
   }
@@ -86,6 +91,8 @@ object ReplaceDistinctDiffSkylines extends Rule[LogicalPlan] {
       if skylineItems.forall(_.minMaxDiff == SkylineDiff) =>
       // since the values should be distinct, we eliminate duplicates using Deduplicate
       // ATTENTION: Deduplicate must be transformed to aggregate by optimizations
+      log.warn("Distinct skyline with only DIFF dimensions detected! " +
+        "Please ensure that original query is correct.");
       Deduplicate(skylineItems.map(_.child.references.head), child)
   }
 }
@@ -113,6 +120,8 @@ object RemoveSingleDimensionalSkylines extends Rule[LogicalPlan] {
         skylineItems.size == 1
           && (skylineItems.head.minMaxDiff==SkylineMin || skylineItems.head.minMaxDiff==SkylineMax)
         ) =>
+      log.info("Single-dimensional skyline has been rewritten to \"pure\" SQL.");
+
       // get the single skyline dimension via head
       val skylineDimension = skylineItems.head
 

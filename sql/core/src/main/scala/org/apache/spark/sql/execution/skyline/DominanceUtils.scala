@@ -20,7 +20,7 @@ package org.apache.spark.sql.execution.skyline
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.skyline.{SkylineDiff, SkylineMax, SkylineMin, SkylineMinMaxDiff}
-import org.apache.spark.sql.types.{AbstractDataType, ByteType, DecimalType, DoubleType, FloatType, IntegerType, LongType, ShortType}
+import org.apache.spark.sql.types.{AbstractDataType, BooleanType, ByteType, DecimalType, DoubleType, FloatType, IntegerType, LongType, ShortType}
 
 /**
  * Contains the results of dominance checks
@@ -138,6 +138,31 @@ object DominanceUtils extends Logging {
       } else {
         // switch according to data type provided
         schema(ord) match {
+          case BooleanType =>
+            // Boolean Type
+            val (valA, valB) = (rowA.getBoolean(ord), rowB.getBoolean(ord))
+
+            // check which dimension is better or different
+            minMaxDiff(idx) match {
+              case _@SkylineMin =>
+                if (valA < valB) {
+                  a_strictly_better = true
+                }
+                else if (valB < valA) {
+                  b_strictly_better = true
+                }
+              case _@SkylineMax =>
+                if (valA > valB) {
+                  a_strictly_better = true
+                }
+                else if (valB > valA) {
+                  b_strictly_better = true
+                }
+              case _@SkylineDiff =>
+                if (valA != valB) {
+                  a_different_b = true
+                }
+            }
           case ByteType | ShortType | IntegerType =>
             // Integral Types (excluding Long)
             val (valA, valB) = if (schema(ord) == ByteType) {
